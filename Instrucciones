@@ -1,2 +1,73 @@
-En la ruta C:\Users\"REMPLAZARUSUARIO"\Documents\blender_mcp crear la carpeta "blender_mcp" dentro de esta carpeta, añadir los archivos añadidos
-dentro de la carpeta "blender_mcp" pegar la carpeta src con su contenido
+Paso 1. En la ruta C:\Users\"REMPLAZARUSUARIO"\Documents\blender_mcp crear la carpeta "blender_mcp" dentro de esta carpeta, 
+Paso 2. Añadir los archivos añadidos.
+Paso 3. Dentro de la carpeta "blender_mcp" pegar el contenido descomprimido del archivo src.rar 
+Paso 4. Instalar Claude Desktop
+Paso 5. Abrimos PowerShell, ejecutamos como administrador y ejecutamos la siguiente linea de comando: powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+Paso 6. Cerramos PowerShell, y verificamos la instalación con: uv --version (debe dar un mensaje como uv 0.12.19)
+Paso 7. En PowerShell ejecutamos: cd C:\Users\"REMPLAZARUSUARIO"\Documents\blender_mcp y despues ejecutamos: New-Item -ItemType File -Name "README.md" -Force
+uv sync
+Paso 8. Buscamos y Configuramos el archivo claude_desktop_config.json, podemos hacerlo con Win + R y seleccionar: %APPDATA%\Claude el archivo debe tener esta estructura
+{
+  "mcpServers": {
+    "blender": {
+      "command": "C:\\Users\\"REMPLAZARUSUARIO"\\.local\\bin\\uv.exe",
+      "args": [
+        "run",
+        "--directory",
+        "C:\\Users\\"REMPLAZARUSUARIO"\\Documents\\blender_mcp",
+        "python",
+        "server.py"
+      ]
+    }
+  },
+  "coworkUserFilesPath": "C:\\Users\\Pedro\\Claude",
+  "preferences": {
+    "coworkBrowserToolsEnabled": false,
+    "coworkPreferredBrowser": "built_in",
+    "launchPreviewPersistedWorkspaces": [],
+    "launchPreviewSessionScopedSessions": [],
+    "coworkLegacyRootGrantsPruned": true,
+    "coworkScheduledTasksEnabled": false,
+    "coworkHipaaRestricted": false,
+    "orgWorkAcrossAppsDisabled": true,
+    "ccdScheduledTasksEnabled": false,
+    "earlyWindowShowLatched": true,
+    "storeReadCacheLatched": true,
+    "sidebarMode": "chat",
+    "bypassPermissionsGateByAccount": {
+      "37989d0a-5f09-4d50-8146-34c5caff8c2c": false
+    },
+    "coworkWebSearchEnabled": true,
+    "coworkModelAutoFallbackByAccount": {
+      "37989d0a-5f09-4d50-8146-34c5caff8c2c": true
+    },
+    "remoteToolsDeviceName": "laptop",
+    "epitaxyPrefs": {
+      "desktop-frame.paneStore.v1": {
+        "state": {
+          "extraPanesByMode": {},
+          "colWeightsByMode": {},
+          "rowSplit": 0.5,
+          "draftNonce": 0,
+          "lastPrimaryCodeSession": null
+        },
+        "version": 4
+      },
+      "starred-local-code-sessions": [],
+      "starred-cowork-spaces": [],
+      "starred-session-groups": [],
+      "dframe-group-scopes": {},
+      "dframe-local-slice": {
+        "pinnedOrder": [],
+        "homeProjectsPinnedOrder": []
+      },
+      "ccd-sessions-filter": {
+        "state": {
+          "selectedProjects": []
+        },
+        "version": 0
+      },
+      "starred-local-routines": []
+    }
+  }
+}
