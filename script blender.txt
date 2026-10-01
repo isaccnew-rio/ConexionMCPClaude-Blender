@@ -1,0 +1,128 @@
+import bpy
+import socket
+import json
+import threading
+import queue
+import sys
+import io
+import traceback
+
+HOST = '127.0.0.1'
+PORT = 9876
+
+# Cola para sincronizar llamadas con el hilo principal de Blender
+execution_queue = queue.Queue()
+
+def process_queue():
+    """Procesa los scripts en el hilo principal de Blender."""
+    while not execution_queue.empty():
+        payload, result_container = execution_queue.get()
+        code = payload.get("code", "")
+        
+        # Redireccionar stdout/stderr para capturar prints y errores
+        stdout_capture = io.StringIO()
+        stderr_capture = io.StringIO()
+        old_stdout, old_stderr = sys.stdout, sys.stderr
+        sys.stdout, sys.stderr = stdout_capture, stderr_capture
+        
+        try:
+            # Contexto global seguro para la ejecución
+            exec_globals = {"bpy": bpy, "json": json}
+            exec(code, exec_globals)
+            
+            output = stdout_capture.getvalue()
+            result_container["response"] = {
+                "status": "success",
+                "output": output if output else "Ejecutado correctamente sin output de texto."
+            }
+        except Exception as e:
+            error_msg = traceback.format_exc()
+            result_container["response"] = {
+                "status": "error",
+                "message": str(e),
+                "traceback": error_msg
+            }
+        finally:
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
+            
+    return 0.1  # Reejecutar cada 0.1 segundos
+
+# Detener hilos y timers previos
+for t in threading.enumerate():
+    if t.name == "BlenderMCPBridge":
+        t.running = False
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as dummy:
+                dummy.connect((HOST, PORT))
+        except Exception:
+            pass
+
+if bpy.app.timers.is_registered(process_queue):
+    bpy.app.timers.unregister(process_queue)
+
+# Registrar el procesador en el hilo principal
+bpy.app.timers.register(process_queue)
+
+class BlenderMCPBridge(threading.Thread):
+    def __init__(self):
+        super().__init__()
+        self.daemon = True
+        self.running = True
+
+    def run(self):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s.bind((HOST, PORT))
+            s.listen(1)
+            print(f"--- Puente MCP Seguro activo en http://{HOST}:{PORT} ---")
+            
+            while self.running:
+                try:
+                    s.settimeout(1.0)
+                    conn, addr = s.accept()
+                    with conn:
+                        data = conn.recv(65536)
+                        if not data or not self.running:
+                            continue
+                        
+                        payload = json.loads(data.decode('utf-8'))
+                        action = payload.get("action")
+                        
+                        if action == "execute":
+                            result_container = {}
+                            execution_queue.put((payload, result_container))
+                            
+                            # Esperar a que el hilo principal procese el comando
+                            timeout_counter = 0
+                            while "response" not in result_container and timeout_counter < 50:
+                                threading.Event().wait(0.1)
+                                timeout_counter += 1
+                                
+                            response = result_container.get("response", {
+                                "status": "error",
+                                "message": "Tiempo de espera agotado al ejecutar en el hilo principal."
+                            })
+                                
+                        elif action == "get_info":
+                            active_obj = bpy.context.view_layer.objects.active
+                            name = active_obj.name if active_obj else "Ninguno"
+                            response = {
+                                "status": "success", 
+                                "version": bpy.app.version_string, 
+                                "active_object": name
+                            }
+                        else:
+                            response = {"status": "error", "message": "Acción no reconocida"}
+                        
+                        conn.sendall(json.dumps(response).encode('utf-8'))
+                except socket.timeout:
+                    continue
+                except Exception as e:
+                    if self.running:
+                        print(f"Error en el puente: {str(e)}")
+
+# Iniciar el servidor
+bridge = BlenderMCPBridge()
+bridge.name = "BlenderMCPBridge"
+bridge.start()
